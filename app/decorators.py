@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import request, jsonify
-from model import User
+from app.model import User
 def is_retailer(f):
     @wraps(f)
     def inner(*args, **kwargs):
