@@ -22,7 +22,6 @@ def create_app():
     db.init_app(app)
     mail.init_app(app)
     migrate = Migrate(app, db)
-    
     from .routes import app as routes_blueprint
     app.register_blueprint(routes_blueprint)
 

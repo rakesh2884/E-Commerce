@@ -3,6 +3,7 @@ from .model import User
 import re
 from flask_mail import Message
 from app import mail
+from pywebpush import webpush, WebPushException
 
 from jwt import encode, decode
 import os
@@ -11,7 +12,7 @@ arr=[]
 arr1=[]
 active_user=[]
 app = Blueprint('app', __name__)
-from app.model import  User, Product,CartItem
+from app.model import  User, Product,CartItem, Notification
 from app.decorators import is_customer,is_retailer
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -169,7 +170,6 @@ def add_to_cart():
     quantity=data['quantity']
     user_id=data['user_id']
     cart_item = CartItem(user_id=user_id,product_id=product_id, quantity=quantity)
-    cart=CartItem.query.filter_by()
     cart_item.add()
     return jsonify({'message': 'Item added to cart successfully'}), 201
 @app.route('/check_out',methods=['GET','POST'])
@@ -184,6 +184,35 @@ def check_out():
     cart=CartItem.query.filter_by(user_id=user_id).first()
     if cart:
         cart.remove()
-        return jsonify({'message':'Your Order Placed Successfully and Your order is will delieverd to your registered address'+Address})
+        product = Product.query.filter_by(id=product_id).first()
+        if product:
+            retailer = User.query.filter_by(id=user_id).first()
+            if retailer:
+                msg = Message(subject='New Order', sender=os.getenv('MAIL_USERNAME'), recipients=[retailer.email])
+                msg.body = f"Dear {retailer.username}, you have a new order for the product: {product.product_name}."
+                mail.send(msg)
+                notifi=f"Dear {retailer.username}, you have a new order for the product: {product.product_name}."
+                new_notification=Notification(user_id=user_id,product_id=product_id,Notifications=notifi) 
+                new_notification.add()       
+            return jsonify({'message':'Your Order Placed Successfully and Your order is will delieverd to your registered address'+Address})
+        
     else:
         return jsonify({'message':'cart is empty'})
+
+@app.route('/notification',methods=['GET','POST'])
+@is_retailer
+def notification():
+    data=request.get_json()
+    username=data['username']
+    password=data['password']
+    user_id=data['user_id']
+    user=User.query.filter_by(username=username).first()
+    notify=Notification.query.all()
+    qrr=[]
+    for notified in notify:
+        if user.id==notified.user_id:
+            lst=([{'notification':notified.Notifications}])
+            qrr.append(lst)
+        else:
+            continue
+    return ({'users': qrr}),201
