@@ -1,10 +1,11 @@
 from flask import Blueprint, request, jsonify
 from .model import User
 import re
+from flask import render_template
 from flask_mail import Message
 from app import mail
 from pywebpush import webpush, WebPushException
-
+from flask import session
 from jwt import encode, decode
 import os
 import time
@@ -13,16 +14,16 @@ arr1=[]
 active_user=[]
 app = Blueprint('app', __name__)
 from app.model import  User, Product,CartItem, Notification
-from app.decorators import is_customer,is_retailer
+from app.decorators import is_customer,is_retailer,token_required
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-        data=request.get_json()
-        username = data['username']
-        password = data['password']
-        email=data['email']
-        role = data['role']
-        confirm_password=data['confirm_password']
+    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form :
+        username = request.form['username']
+        password = request.form['password']
+        email=request.form['email']
+        role = request.form['role']
+        confirm_password=request.form['confirm_password']
         if len(password) < 8:
             return jsonify({'message':'Make sure your password is at lest 8 letters'}) 
         elif re.search('[0-9]',password) is None:
@@ -40,15 +41,15 @@ def register():
                 active_user.append(username)
                 new_user.save()
                 return jsonify({'message':'user registered successfully'})
-            else:
-                return jsonify({'message':'user already exist'})
+        return render_template('register.html')
+
 login_attempts={}
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-        data=request.get_json()
-        username = data['username']
-        password = data['password']
-        email=data['email']
+    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form :
+        username = request.form['username']
+        password = request.form['password']
+        email=request.form['email']
         user = User.query.filter_by(username=username).first()
         if not user:
             return jsonify({'message': 'User does not exist'}), 400
@@ -68,11 +69,8 @@ def login():
             else:
                 return jsonify({'message': 'Incorrect password, try again'}), 400
         elif username not in active_user:
-            return jsonify({'message': 'User is not activated'}), 400
-        
-        else:
-            token = encode({"email": email,"action": "login", "timestamp": int(time.time())}, os.getenv('JWT_SECRET_KEY'))
-            return jsonify({'message': 'Login successful','token': token}), 400
+            return jsonify({'message': 'User is not activated'}), 400    
+    return render_template('register.html')
 @app.route('/deactivate', methods=['GET'])
 def deactivate():
     link = request.args.get('link')
@@ -199,20 +197,21 @@ def check_out():
     else:
         return jsonify({'message':'cart is empty'})
 
-@app.route('/notification',methods=['GET','POST'])
-@is_retailer
-def notification():
-    data=request.get_json()
-    username=data['username']
-    password=data['password']
-    user_id=data['user_id']
-    user=User.query.filter_by(username=username).first()
-    notify=Notification.query.all()
-    qrr=[]
-    for notified in notify:
-        if user.id==notified.user_id:
-            lst=([{'notification':notified.Notifications}])
-            qrr.append(lst)
-        else:
-            continue
-    return ({'users': qrr}),201
+@app.route('/product_list',methods=['GET'])
+def product_list():
+    p=[]
+    products=Product.query.all()
+    for product in products:
+        p.append(product.product_name)
+    return p
+        
+
+@app.route('/notifications', methods=['GET'])
+
+def get_notifications():
+    n=[]
+    user=User.query.all()
+    notification=Notification.query.all()
+    for notify in notification:
+        n.append(notify.Notifications)
+    return n
