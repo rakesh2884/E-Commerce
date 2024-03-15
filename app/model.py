@@ -45,3 +45,17 @@ class CartItem(db.Model):
     def remove(self):
         db.session.delete(self)
         db.session.commit()
+class Notification(db.Model):
+    __tablename__="notification"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('notification', lazy=True))
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product = db.relationship('Product', backref=db.backref('notification', lazy=True))
+    Notifications=db.Column(db.String)
+    def add(self):
+        db.session.add(self)
+        db.session.commit()
+    def remove(self):
+        db.session.delete(self)
+        db.session.commit()
