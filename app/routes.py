@@ -4,7 +4,6 @@ import re
 from flask import render_template
 from flask_mail import Message
 from app import mail
-from pywebpush import webpush, WebPushException
 from flask import session
 from jwt import encode, decode
 import os
@@ -12,36 +11,40 @@ import time
 arr=[]
 arr1=[]
 active_user=[]
+log_in={}
 app = Blueprint('app', __name__)
 from app.model import  User, Product,CartItem, Notification
-from app.decorators import is_customer,is_retailer,token_required
+from app.decorators import is_customer,is_retailer,require_api_token
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['GET','POST'])
 def register():
-    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form :
+    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'confirm_password' in request.form and 'role' in request.form:
         username = request.form['username']
         password = request.form['password']
-        email=request.form['email']
-        role = request.form['role']
         confirm_password=request.form['confirm_password']
+        email=request.form['email']
+        role=request.form['role']
+        
+        existing_user= User.query.filter_by(username=username).first()
+        if existing_user:
+            return jsonify({'message':'Account already exists !'})
         if len(password) < 8:
-            return jsonify({'message':'Make sure your password is at lest 8 letters'}) 
+            return jsonify({'message':'Make sure password is at least of 8 character'})
         elif re.search('[0-9]',password) is None:
             return jsonify({'message':'Make sure your password has a number in it'})
         elif re.search('[A-Z]',password) is None: 
             return jsonify({'message':'Make sure your password has a capital letter in it'})
         elif re.search('[^a-zA-Z0-9]',password) is None:
-            return jsonify({'message':'Make sure your password has a special character in it'}) 
+            return jsonify({'message':'Make sure your password has a spexial character in it'})
         elif password!=confirm_password:
-            return jsonify({'message':'password not match'})
+            return jsonify({'message':'Password not match'})
         else:
-            new_user = User(username=username,password=password,email=email, role=role)
-            user=User.query.filter_by(username=username).first()
-            if not user:
-                active_user.append(username)
-                new_user.save()
-                return jsonify({'message':'user registered successfully'})
-        return render_template('register.html')
+            user = User(username=username,password=password,email=email,role=role)
+            active_user.append(username)
+            user.save()
+            return jsonify({'message':'registered successful'}),401
+    return render_template('register.html')
+
 
 login_attempts={}
 @app.route('/login', methods=['GET', 'POST'])
@@ -69,8 +72,12 @@ def login():
             else:
                 return jsonify({'message': 'Incorrect password, try again'}), 400
         elif username not in active_user:
-            return jsonify({'message': 'User is not activated'}), 400    
-    return render_template('register.html')
+            return jsonify({'message': 'User is not activated'}), 400 
+        else:
+            token=encode({"username":username,"email": email,"password":password,"action": "activate", "timestamp": int(time.time())}, os.getenv('JWT_SECRET_KEY'))
+            log_in['token']=token
+            return jsonify({'mssg':'Login successful'})   
+    return render_template('login.html')
 @app.route('/deactivate', methods=['GET'])
 def deactivate():
     link = request.args.get('link')
@@ -159,7 +166,11 @@ def add_product():
             return jsonify({'message':'product added successfully'})
     else:
          return jsonify({'message':'Invalid user'})
-    
+@app.route('/products',methods=['GET'])
+def products():
+    return render_template('product.html') 
+
+
 @app.route('/add_to_cart',methods=['GET','POST'])
 @is_customer
 def add_to_cart():
@@ -170,6 +181,12 @@ def add_to_cart():
     cart_item = CartItem(user_id=user_id,product_id=product_id, quantity=quantity)
     cart_item.add()
     return jsonify({'message': 'Item added to cart successfully'}), 201
+
+
+@app.route('/my_cart',methods=['GET'])
+def my_cart():
+    return render_template('cart.html') 
+
 @app.route('/check_out',methods=['GET','POST'])
 def check_out():
     data=request.get_json()
@@ -196,22 +213,19 @@ def check_out():
         
     else:
         return jsonify({'message':'cart is empty'})
-
-@app.route('/product_list',methods=['GET'])
-def product_list():
-    p=[]
-    products=Product.query.all()
-    for product in products:
-        p.append(product.product_name)
-    return p
         
 
 @app.route('/notifications', methods=['GET'])
-
 def get_notifications():
     n=[]
-    user=User.query.all()
-    notification=Notification.query.all()
-    for notify in notification:
-        n.append(notify.Notifications)
-    return n
+    if 'token' in log_in:
+        token=log_in['token']
+        decoded_token = decode(token, os.getenv('JWT_SECRET_KEY'), algorithms=['HS256'])
+        username=decoded_token.get('username')
+        user=User.query.filter_by(username=username).first()
+        notification=Notification.query.filter_by(user_id=user.id).all()
+        for notify in notification:
+            n.append(notify.Notifications)
+        return n
+    else:
+        return "not login"
