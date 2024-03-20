@@ -1,8 +1,11 @@
 from flask_wtf import FlaskForm
 from flask_login import current_user
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, IntegerField, SelectField
-from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, IntegerField, SelectField, FileField
+from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Regexp
+from wtforms_validators import AlphaNumeric
+from flask_wtf.file import FileField, FileRequired
 from unwrap.models import User
+import re
 
 
 class RegistrationForm(FlaskForm):
@@ -12,7 +15,7 @@ class RegistrationForm(FlaskForm):
                            validators=[DataRequired(), Length(min=2, max=20)])
     email = StringField('Email',
                         validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=8), Regexp(regex='^.*(?=.{8,})(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=]).*$',message='at least one special character, one capital letter and one digit required')])
     confirm_password = PasswordField('Confirm Password',
                                      validators=[DataRequired(), EqualTo('password')])
     role=SelectField('role', choices=['retailer','customer'],validators=[DataRequired()])
@@ -51,4 +54,7 @@ class AddProductForm(FlaskForm):
                            validators=[DataRequired(), Length(min=2, max=20)])
     price = IntegerField('Product Price',
                            validators=[DataRequired()])
+    description=StringField('Product Description',
+                           validators=[DataRequired(), Length(min=10, max=200)])
+    image = FileField('Product Image',validators=[FileRequired()])
     submit = SubmitField('add_product')

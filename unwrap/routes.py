@@ -3,9 +3,11 @@ import secrets
 from flask import render_template, url_for, flash, redirect, request
 from unwrap import app, db, bcrypt
 from unwrap.forms import RegistrationForm, LoginForm, UpdateAccountForm, AddProductForm
+from flask_paginate import Pagination, get_page_args
 from unwrap.models import User, Products, Cart
 from flask_login import login_user, current_user, logout_user, login_required
 from sqlalchemy import func, update
+from PIL import ImagePath
 def getLoginDetails():
     if current_user.is_authenticated:
         noOfItems = Cart.query.filter_by(buyer=current_user).count()
@@ -13,6 +15,10 @@ def getLoginDetails():
         noOfItems = 0
     return noOfItems
 
+ALLOWED_EXTENSIONS={'png','jpg','jpeg'}
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/")
 @app.route("/home")
@@ -74,12 +80,25 @@ def account():
                            form=form)
 
 
+def get_products(offset=0, per_page=10):
+    products = Products.query.all()
+    return products[offset: offset + per_page]
+
 @app.route("/select_products", methods=['GET', 'POST'])
 def select_products():
-    noOfItems = getLoginDetails()
     products = Products.query.all()
-    return render_template('select_products.html', products=products,noOfItems=noOfItems)
-
+    page, per_page, offset = get_page_args(page_parameter='page',
+                                           per_page_parameter='per_page')
+    total=len(products)
+    pagination_products = get_products(offset=offset,per_page=per_page)
+    pagination = Pagination(page=page, per_page=per_page,total=total,
+                            css_framework='bootstrap4')
+    return render_template('select_products.html',
+                           products=pagination_products,
+                           page=page,
+                           per_page=per_page,
+                           pagination=pagination,
+                           )
 
 
 @app.route("/addToCart/<int:product_id>")
@@ -99,7 +118,7 @@ def addToCart(product_id):
 def add_product():
     form = AddProductForm()
     if form.validate_on_submit():
-        new_product=Products(name=form.name.data,price=form.price.data)
+        new_product=Products(name=form.name.data,price=form.price.data,image=ImagePath(form.image.data),description=form.description.data)
         db.session.add(new_product)
         db.session.commit()
         flash('Product added successfully', 'success')
@@ -109,7 +128,7 @@ def add_product():
 @login_required
 def cart():
     noOfItems = getLoginDetails()
-    cart = Products.query.join(Cart).add_columns(Cart.quantity, Products.price, Products.name, Products.id).filter_by(id=Cart.user_id).all()
+    cart = Products.query.join(Cart).add_columns(Cart.quantity, Products.price, Products.name, Products.id).filter_by(id=Products.id).all()
     subtotal = 0
     for item in cart:
         subtotal+=int(item.price)*int(item.quantity)
@@ -120,7 +139,7 @@ def cart():
         cartitem = Cart.query.filter_by(product_id=idpd).first()
         cartitem.quantity = qty
         db.session.commit()
-        cart = Products.query.join(Cart).add_columns(Cart.quantity, Products.price, Products.name, Products.id).filter_by(id=Cart.user_id).all()
+        cart = Products.query.join(Cart).add_columns(Cart.quantity, Products.price, Products.name, Products.id).filter_by(id=Products.id).all()
         subtotal = 0
         for item in cart:
             subtotal+=int(item.price)*int(item.quantity)

@@ -1,26 +1,31 @@
 {% extends "layout.html" %}
 {% block content %}
 <div class="row">
-    {% for product in products %}
-    
-
-        <div class="col-sm">
-						<b>
-						{{ product.name }}
-						</b>
-					</div>					    
-				    <p class="card-text">{{ product.price }}</p>
-					<div id="addToCart">
-						<a href="/addToCart/{{product.id}}">Add to cart</a>
-					</div>
-        		</div>
-			</div>
+	<div class="container">
+		{{ pagination.links }}
+		<div class="table-responsive">
+		  <table class="table table-hover">
+			<thead>
+			  <tr>
+				<th style="text-align: center;">Product Name</th>
+				<th style="text-align: center;">Product Description</th>
+				<th style="text-align: center;">Product Price</th>
+			  </tr>
+			</thead>
+			<tbody>
+			  {% for product in products %}
+			  <tr>
+				<td><b>
+					{{ product.name }}
+					</b></td>
+					<td>{{ product.description }}</td>
+				<td>{{ product.price }}</td>
+				<td><a href="/addToCart/{{product.id}}">Add to cart</a></td>
+			  </tr>
+			  {% endfor %}
+			</tbody>
+		  </table>
 		</div>
-
-	
-            
-
-
-    {% endfor %}
-</div>
+		{{ pagination.links }}
+	  </div>
 {% endblock content %}
