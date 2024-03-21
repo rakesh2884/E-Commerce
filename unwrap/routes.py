@@ -1,13 +1,15 @@
 import os
 import secrets
-from flask import render_template, url_for, flash, redirect, request
+from flask import render_template, url_for, flash, redirect, request, jsonify
 from unwrap import app, db, bcrypt
 from unwrap.forms import RegistrationForm, LoginForm, UpdateAccountForm, AddProductForm
 from flask_paginate import Pagination, get_page_args
 from unwrap.models import User, Products, Cart
 from flask_login import login_user, current_user, logout_user, login_required
 from sqlalchemy import func, update
-from PIL import ImagePath
+from wtforms import Form
+from werkzeug.utils import secure_filename
+from PIL import Image
 def getLoginDetails():
     if current_user.is_authenticated:
         noOfItems = Cart.query.filter_by(buyer=current_user).count()
@@ -15,10 +17,6 @@ def getLoginDetails():
         noOfItems = 0
     return noOfItems
 
-ALLOWED_EXTENSIONS={'png','jpg','jpeg'}
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/")
 @app.route("/home")
@@ -113,17 +111,17 @@ def addToCart(product_id):
         user = User.query.get(current_user.id)
         user.add_to_cart(product_id)
     return redirect(url_for('select_products'))
-@app.route('/add_product',methods=['GET','POSt'])
-@login_required
-def add_product():
-    form = AddProductForm()
-    if form.validate_on_submit():
-        new_product=Products(name=form.name.data,price=form.price.data,image=ImagePath(form.image.data),description=form.description.data)
-        db.session.add(new_product)
-        db.session.commit()
-        flash('Product added successfully', 'success')
-    return render_template('add_product.html',form=form)
 
+
+@app.route('/add_product',methods=['GET','POST'])
+def add_product():
+    
+    name=request.form.get("name")
+    price=request.form.get("price")
+    description=request.form.get("description")
+    image=request.files["image"]
+    i=os.path.join(app.config['UPLOAD_FOLDER'], image.filename)
+    return i
 @app.route("/cart", methods=["GET", "POST"])
 @login_required
 def cart():
