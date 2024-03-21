@@ -31,8 +31,8 @@ class Products(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    image=db.Column(db.String(100),nullable=False)
-    description = db.Column(db.String(500), nullable=False)
+    image = db.Column(db.String(20), nullable=True, default='default.jpg')
+    description = db.Column(db.Text, nullable=False)
 
     def assign(self):
         db.session.add(self)

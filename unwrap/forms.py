@@ -1,9 +1,8 @@
 from flask_wtf import FlaskForm
 from flask_login import current_user
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, IntegerField, SelectField, FileField
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, IntegerField, SelectField, FileField, TextAreaField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Regexp
-from wtforms_validators import AlphaNumeric
-from flask_wtf.file import FileField, FileRequired
+from flask_wtf.file import FileField, FileAllowed
 from unwrap.models import User
 import re
 
@@ -54,7 +53,6 @@ class AddProductForm(FlaskForm):
                            validators=[DataRequired(), Length(min=2, max=20)])
     price = IntegerField('Product Price',
                            validators=[DataRequired()])
-    description=StringField('Product Description',
-                           validators=[DataRequired(), Length(min=10, max=200)])
-    image = FileField('Product Image',validators=[FileRequired()])
-    submit = SubmitField('add_product')
+    description = TextAreaField('Description', validators=[DataRequired(), Length(min=2)])
+    image = FileField('Image', validators=[FileAllowed(['jpg', 'png', 'jpeg'])])
+    submit = SubmitField('Add Product')
